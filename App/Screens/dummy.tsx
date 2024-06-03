@@ -1,20 +1,21 @@
-import Geolocation from '@react-native-community/geolocation';
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  Modal,
-  Platform,
-  StyleSheet,
+  View,
   Text,
-  TextInput,
   TouchableOpacity,
-  View
+  TextInput,
+  Modal,
+  StyleSheet,
+  Platform,
+  Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import MapView, {Marker} from 'react-native-maps';
+import Geolocation from '@react-native-community/geolocation';
 import DropDownPicker from 'react-native-dropdown-picker';
-import MapView, { Marker } from 'react-native-maps';
+import {getLocation, saveLocation} from '../helpers/helper';
 import Toast from 'react-native-toast-message';
-import { saveLocation } from '../helpers/helper';
 
 interface Location {
   latitude: number;
@@ -31,25 +32,58 @@ interface CustomMarker {
   floorLevel: string;
 }
 
+const MapViewComponent: React.FC<{markers: CustomMarker[]}> = ({markers}) => {
+  if (!Array.isArray(markers) || markers.length === 0) {
+ 
+    return null;
+  }
 
+  return (
+    <MapView
+      style={styles.map}
+      showsUserLocation={true}
+      provider={"google"}
+      followsUserLocation={true}
+      initialRegion={{
+        latitude: 12.9592528,
+        longitude: 77.5210216,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }}>
+      {
+      markers.length !== 0 ?
+      markers.map(marker => {
+        return (
+          <Marker
+            key={marker.id}
+            coordinate={{
+              latitude: marker?.latitude,
+              longitude: marker?.longitude,
+            }}
+            title={marker?.storeNumber}
+            description={`Floor Level: ${marker?.floorLevel}`}
+          />
+        );
+      }) : null}
+    </MapView>
+  );
+};
 
 const FormModal: React.FC<{
   isVisible: boolean;
   onClose: () => void;
-  location: Location | null; 
   onSave: (storeNumber: string, floorLevel: string) => void;
-}> = ({isVisible, onClose,location, onSave}) => {
-  
+}> = ({isVisible, onClose, onSave}) => {
   const [storeNumber, setStoreNumber] = useState<string>('');
   const [floorLevel, setFloorLevel] = useState<string>('');
 
   const [open, setOpen] = useState(false);
   const [items] = useState([
-    {label: 'Basement Floor', value: '-1'},
-    {label: 'Ground Floor', value: '0'},
     {label: 'First Floor', value: '1'},
-    // {label: 'Second Floor', value: '3'},
-    // {label: 'Third Floor', value: '4'},
+    {label: 'Second Floor', value: '2'},
+    {label: 'Third Floor', value: '3'},
+    {label: 'Fourth Floor', value: '4'},
+    {label: 'Ground Floor', value: '0'},
   ]);
 
   const handleSave = () => {
@@ -62,16 +96,10 @@ const FormModal: React.FC<{
   return (
     <Modal visible={isVisible} transparent animationType="slide">
       <View style={styles.modalContainer}>
-       <View style={{flexDirection:'row',justifyContent:'center',marginBottom:10}}>
-       <Text style={{color:'#000000',marginRight:10}}>Latitue : {location?.latitude}</Text>
-        <Text style={{color:'#000000'}}>Longitude : {location?.longitude}</Text>
-       </View>
         <TextInput
           style={styles.input}
           placeholder="Store Number"
           value={storeNumber}
-          placeholderTextColor={"#000000"}
-
           onChangeText={text => setStoreNumber(text)}
         />
         <DropDownPicker
@@ -187,33 +215,7 @@ const Home: React.FC = ({route}) => {
   return (
     <View style={{flex: 1}}>
       {currentLocation && markers ? (
-         <MapView
-         style={styles.map}
-         showsUserLocation={true}
-         provider={"google"}
-         followsUserLocation={true}
-         initialRegion={{
-           latitude: currentLocation?.latitude,
-           longitude: currentLocation?.longitude,
-           latitudeDelta: 0.05,
-           longitudeDelta: 0.05,
-         }}>
-         {
-         markers.length !== 0 ?
-         markers.map(marker => {
-           return (
-             <Marker
-               key={marker.id}
-               coordinate={{
-                 latitude: marker?.latitude,
-                 longitude: marker?.longitude,
-               }}
-               title={marker?.storeNumber}
-               description={`Floor Level: ${marker?.floorLevel}`}
-             />
-           );
-         }) : null}
-       </MapView>
+        <MapViewComponent markers={markers} />
       ) : (
         <ActivityIndicator size={'large'} color={'#895124'} style={{marginTop:400}} />
       )}
@@ -222,7 +224,6 @@ const Home: React.FC = ({route}) => {
         isVisible={isModalVisible}
         onClose={hideFormModal}
         onSave={handleSave}
-        location = {currentLocation}
       />
 
       <TouchableOpacity style={styles.fab} onPress={showFormModal}>
@@ -262,7 +263,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 10,
     paddingHorizontal: 10,
-    color:'#000000'
   },
   buttonContainer: {
     flexDirection: 'row',
